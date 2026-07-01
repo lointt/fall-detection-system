@@ -1,0 +1,410 @@
+/* ═══════════════════════════════════════════
+   history.css — Fall Detection History View
+   ═══════════════════════════════════════════ */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:          #b0b0b0;
+  --ctrl-bg:     #3a3a3a;
+  --ctrl-border: #555;
+  --blue:        #2563eb;
+  --blue-hover:  #1d4ed8;
+  --green:       #16a34a;
+  --red:         #dc2626;
+  --text-primary:#111;
+  --text-muted:  #666;
+  --text-white:  #fff;
+  --radius:      8px;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text-primary);
+}
+
+/* ── WRAPPER ──────────────────────────────── */
+.app-wrapper {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 14px;
+  gap: 10px;
+  overflow: hidden;
+}
+
+/* ── HEADER ───────────────────────────────── */
+.header {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+.header-title {
+  margin-right: auto;
+  font-size: .95rem;
+  font-weight: 600;
+}
+.nav-tabs { display: flex; gap: 6px; }
+.tab {
+  padding: 6px 20px;
+  border-radius: 999px;
+  font-size: .9rem;
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--text-primary);
+  transition: background .15s, color .15s;
+}
+.tab:hover { background: rgba(0,0,0,.08); }
+.tab--active { background: var(--blue); color: var(--text-white); }
+.tab--active:hover { background: var(--blue-hover); }
+
+/* ── BODY ─────────────────────────────────── */
+.body-wrap {
+  flex: 1;
+  display: flex;
+  gap: 10px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ── SIDEBAR ──────────────────────────────── */
+.sidebar {
+  width: 180px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+}
+
+.camera-card {
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 2px solid transparent;
+  background: #222;
+  cursor: pointer;
+}
+.camera-card--active { border-color: var(--blue); }
+
+.camera-thumb {
+  width: 100%;
+  aspect-ratio: 4/3;
+  background: #1a1a1a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.camera-thumb__label {
+  font-size: .75rem;
+  font-weight: 600;
+  color: rgba(255,255,255,.8);
+  text-align: center;
+  text-shadow: 0 1px 3px rgba(0,0,0,.9);
+}
+
+/* Session list */
+.session-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+}
+.session-empty {
+  font-size: .78rem;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 8px 0;
+}
+.session-item {
+  padding: 7px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1.5px solid transparent;
+  font-size: .78rem;
+  background: rgba(255,255,255,.6);
+  transition: background .12s, border-color .12s;
+}
+.session-item:hover { background: rgba(255,255,255,.8); }
+.session-item--active {
+  border-color: var(--blue);
+  background: rgba(37,99,235,.15);
+  color: var(--blue);
+}
+.session-item__time { font-weight: 700; font-variant-numeric: tabular-nums; }
+.session-item__label { font-size: .7rem; color: var(--text-muted); margin-top: 1px; }
+.session-item--active .session-item__label { color: var(--blue); opacity: .75; }
+.fall-badge-mini {
+  display: inline-block;
+  background: var(--red);
+  color: #fff;
+  font-size: .62rem;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 999px;
+  margin-left: 3px;
+  vertical-align: middle;
+}
+
+/* ── RIGHT COLUMN ─────────────────────────── */
+.right-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* ── FEED CONTAINER ───────────────────────── */
+.feed-container {
+  flex: 1;
+  position: relative;
+  background: #111;
+  border-radius: var(--radius) var(--radius) 0 0;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* Meta top-left inside screen */
+.feed-meta {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.feed-meta__room {
+  font-size: .75rem;
+  font-weight: 600;
+  color: rgba(255,255,255,.7);
+  text-shadow: 0 1px 3px rgba(0,0,0,.8);
+}
+.feed-meta__datetime {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+}
+.feed-meta__datetime span {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 4px rgba(0,0,0,.9);
+  font-variant-numeric: tabular-nums;
+}
+
+.feed-video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.feed-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  color: #777;
+  font-size: .88rem;
+}
+
+.fall-badge {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--red);
+  color: #fff;
+  font-size: .9rem;
+  font-weight: 700;
+  padding: 5px 18px;
+  border-radius: 999px;
+  white-space: nowrap;
+  box-shadow: 0 2px 12px rgba(220,38,38,.45);
+  animation: pulse .9s infinite alternate;
+  z-index: 10;
+}
+@keyframes pulse {
+  from { opacity: 1;  transform: translateX(-50%) scale(1); }
+  to   { opacity: .8; transform: translateX(-50%) scale(1.04); }
+}
+
+/* ── CONTROL BAR ──────────────────────────── */
+.control-bar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--ctrl-bg);
+  padding: 7px 12px;
+  border: 1.5px solid var(--ctrl-border);
+  border-top: none;
+  border-bottom: none;
+}
+
+.ctrl-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ctrl-btn {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  border: 1.5px solid var(--ctrl-border);
+  background: #555;
+  color: #ccc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background .12s, color .12s;
+}
+.ctrl-btn:not(:disabled):hover  { background: #666; color: #fff; }
+.ctrl-btn:not(:disabled):active { background: #444; }
+.ctrl-btn:disabled { opacity: .35; cursor: default; }
+
+.ctrl-btn--text {
+  border-radius: 6px;
+  font-size: .78rem;
+  font-weight: 700;
+  width: auto;
+  padding: 0 8px;
+  min-width: 34px;
+}
+
+/* Blue vertical divider */
+.ctrl-divider {
+  width: 2px;
+  height: 26px;
+  background: var(--blue);
+  border-radius: 2px;
+  margin: 0 2px;
+  flex-shrink: 0;
+}
+
+/* ── DATE STRIP ───────────────────────────── */
+.date-strip {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.date-pill {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 3px 7px;
+  border-radius: 999px;
+  cursor: pointer;
+  border: 1.5px solid transparent;
+  background: rgba(255,255,255,.08);
+  color: #aaa;
+  font-size: .65rem;
+  line-height: 1.3;
+  transition: background .12s, color .12s;
+  min-width: 38px;
+  flex-shrink: 0;
+}
+.date-pill:hover { background: rgba(255,255,255,.15); color: #ddd; }
+.date-pill--active { background: var(--blue); color: #fff; border-color: var(--blue); }
+.date-pill__day { font-size: .58rem; text-transform: uppercase; letter-spacing: .04em; }
+.date-pill__num { font-weight: 700; font-size: .78rem; font-variant-numeric: tabular-nums; }
+
+.date-hidden {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  width: 1px; height: 1px;
+}
+
+/* ── BLUE TIMELINE SCRUBBER ───────────────── */
+.timeline-wrap {
+  flex-shrink: 0;
+  background: var(--ctrl-bg);
+  border-radius: 0 0 var(--radius) var(--radius);
+  border: 1.5px solid var(--ctrl-border);
+  border-top: none;
+  padding: 6px 12px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.timeline-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: .7rem;
+  color: #aaa;
+  font-variant-numeric: tabular-nums;
+}
+
+.timeline-track {
+  position: relative;
+  height: 16px;
+  display: flex;
+  align-items: center;
+}
+
+/* Grey background bar */
+.timeline-bg {
+  position: absolute;
+  left: 0; right: 0;
+  height: 5px;
+  background: #666;
+  border-radius: 3px;
+}
+
+/* Blue filled portion */
+.timeline-fill {
+  position: absolute;
+  left: 0;
+  height: 5px;
+  background: var(--blue);
+  border-radius: 3px;
+  pointer-events: none;
+  z-index: 1;
+  width: 0%;
+  transition: width .1s linear;
+}
+
+/* Fall event red dots */
+.fall-markers {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+.fall-marker {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 9px; height: 9px;
+  background: var(--red);
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow: 0 0 4px rgba(220,38,38,.6);
+}
+
+/* Invisible range input — draggable thumb for scrubbing */
+.timeline-range {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 3;
+  margin: 0;
+  -webkit-appearance: none;
+}

@@ -1,0 +1,290 @@
+/* ═══════════════════════════════════════════
+   index.css — Fall Detection Live View
+   ═══════════════════════════════════════════ */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:          #b0b0b0;
+  --ctrl-bg:     #3a3a3a;
+  --ctrl-border: #555;
+  --blue:        #2563eb;
+  --blue-hover:  #1d4ed8;
+  --green:       #16a34a;
+  --red:         #dc2626;
+  --text-primary:#111;
+  --text-white:  #fff;
+  --radius:      8px;
+}
+
+/* ── No scroll ───────────────────────────── */
+html, body {
+  height: 100%;
+  overflow: hidden;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text-primary);
+}
+
+/* ── WRAPPER: full viewport, column ─────── */
+.app-wrapper {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 14px 14px 14px 14px;
+  gap: 10px;
+  overflow: hidden;
+}
+
+/* ── HEADER ───────────────────────────────── */
+.header {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.header-title {
+  margin-right: auto;
+  font-size: .95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.nav-tabs { display: flex; gap: 6px; }
+
+.tab {
+  padding: 6px 20px;
+  border-radius: 999px;
+  font-size: .9rem;
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--text-primary);
+  transition: background .15s, color .15s;
+}
+.tab:hover { background: rgba(0,0,0,.08); }
+.tab--active { background: var(--blue); color: var(--text-white); }
+.tab--active:hover { background: var(--blue-hover); }
+
+/* ── BODY WRAP: sidebar + right-col ─────── */
+.body-wrap {
+  flex: 1;
+  display: flex;
+  gap: 10px;
+  min-height: 0;       /* important: allow flex children to shrink */
+  overflow: hidden;
+}
+
+/* ── SIDEBAR ──────────────────────────────── */
+.sidebar {
+  width: 180px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.camera-card {
+  cursor: pointer;
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 2px solid transparent;
+  transition: border-color .15s;
+  background: #222;
+}
+.camera-card--active { border-color: var(--blue); }
+
+.camera-thumb {
+  width: 100%;
+  aspect-ratio: 4/3;
+  position: relative;
+  overflow: hidden;
+  background: #111;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Mini stream image fills the thumb */
+.thumb-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.thumb-offline {
+  position: absolute;
+  inset: 0;
+  background: #1a1a1a;
+}
+
+/* Label centered over the thumb */
+.camera-thumb__label {
+  position: absolute;
+  bottom: 6px;
+  left: 0; right: 0;
+  text-align: center;
+  font-size: .75rem;
+  font-weight: 600;
+  color: rgba(255,255,255,.85);
+  text-shadow: 0 1px 3px rgba(0,0,0,.8);
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* ── RIGHT COLUMN: feed + control bar ────── */
+.right-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* ── MAIN FEED ────────────────────────────── */
+.feed-container {
+  flex: 1;
+  position: relative;
+  background: #111;
+  border-radius: var(--radius) var(--radius) 0 0;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* Meta overlay — top-left INSIDE the big screen */
+.feed-meta {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.feed-meta__room {
+  font-size: .78rem;
+  font-weight: 600;
+  color: rgba(255,255,255,.7);
+  text-shadow: 0 1px 3px rgba(0,0,0,.8);
+}
+
+.feed-meta__datetime {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+}
+
+.feed-meta__datetime span {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: .04em;
+  text-shadow: 0 1px 4px rgba(0,0,0,.9);
+  font-variant-numeric: tabular-nums;
+}
+
+.feed-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.feed-offline {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #777;
+  font-size: .9rem;
+}
+
+.fall-badge {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--red);
+  color: #fff;
+  font-size: .92rem;
+  font-weight: 700;
+  padding: 5px 18px;
+  border-radius: 999px;
+  white-space: nowrap;
+  box-shadow: 0 2px 12px rgba(220,38,38,.5);
+  animation: pulse .9s infinite alternate;
+  z-index: 10;
+}
+
+@keyframes pulse {
+  from { opacity: 1;  transform: translateX(-50%) scale(1); }
+  to   { opacity: .8; transform: translateX(-50%) scale(1.04); }
+}
+
+/* ── CONTROL BAR — same width as feed ────── */
+.control-bar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--ctrl-bg);
+  border-radius: 0 0 var(--radius) var(--radius);
+  padding: 8px 14px;
+  border: 1.5px solid var(--ctrl-border);
+  border-top: none;
+}
+
+.ctrl-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ctrl-btn {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  border: 1.5px solid var(--ctrl-border);
+  background: #555;
+  color: #ccc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background .13s, color .13s;
+  flex-shrink: 0;
+}
+.ctrl-btn:hover  { background: #666; color: #fff; }
+.ctrl-btn:active { background: #444; }
+
+/* Detection dot only */
+.detection-indicator {
+  display: flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.07);
+}
+
+.detection-dot {
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: var(--green);
+  transition: background .2s;
+}
+
+.detection-indicator.is-fall .detection-dot {
+  background: var(--red);
+  animation: blink .6s infinite;
+}
+
+@keyframes blink {
+  0%,100% { opacity: 1; }
+  50%      { opacity: .25; }
+}

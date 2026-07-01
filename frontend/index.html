@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fall Detection — Live</title>
+  <link rel="stylesheet" href="index.css" />
+</head>
+<body>
+  <div class="app-wrapper">
+
+    <!-- ── HEADER ─────────────────────────── -->
+    <header class="header">
+      <span class="header-title">Fall Detection System</span>
+      <nav class="nav-tabs">
+        <a href="index.html"   class="tab tab--active">live</a>
+        <a href="history.html" class="tab">history</a>
+      </nav>
+    </header>
+
+    <!-- ── BODY: sidebar + viewer + control bar ── -->
+    <div class="body-wrap">
+
+      <!-- Left: mini camera -->
+      <aside class="sidebar">
+        <div class="camera-card camera-card--active">
+          <div class="camera-thumb">
+            <img id="thumbStream" src="" alt="" class="thumb-img" />
+            <div class="thumb-offline" id="thumbOffline"></div>
+            <span class="camera-thumb__label">living room</span>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Right: main feed + control bar -->
+      <div class="right-col">
+
+        <!-- Main video area -->
+        <div class="feed-container" id="feedContainer">
+
+          <!-- meta overlay inside the big screen -->
+          <div class="feed-meta" id="feedMeta">
+            <span class="feed-meta__room">living room</span>
+            <div class="feed-meta__datetime">
+              <span id="liveDate">--</span>
+              <span id="liveTime">-- : -- : --</span>
+            </div>
+          </div>
+
+          <!-- Stream -->
+          <img id="liveStream" src="" alt="Live feed" class="feed-img" />
+
+          <!-- Offline overlay -->
+          <div class="feed-offline" id="feedOffline">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M17 17H17.01M3 3L21 21M9 9C6.17157 9 4 11.1716 4 14C4 16.8284 6.17157 19 9 19H17C19.2091 19 21 17.2091 21 15C21 13.3431 19.8284 12 18 11.5"/>
+            </svg>
+            <p>Đang kết nối webcam…</p>
+          </div>
+
+          <!-- Fall badge -->
+          <div class="fall-badge" id="fallBadge" style="display:none">⚠️ TÉ NGÃ PHÁT HIỆN</div>
+        </div>
+
+        <!-- Control bar — same width as feed -->
+        <footer class="control-bar">
+          <div class="ctrl-group">
+            <!-- Rotate (UI only) -->
+            <button class="ctrl-btn" title="Xoay camera (chỉ UI)" aria-label="Xoay">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                <path d="M3 3v5h5"/>
+              </svg>
+            </button>
+
+            <!-- Mute / Unmute -->
+            <button class="ctrl-btn" id="btnMute" title="Tắt/bật âm thanh" aria-label="Âm thanh">
+              <!-- icon on (có âm) -->
+              <svg id="iconSoundOn" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+              </svg>
+              <!-- icon off (tắt âm) -->
+              <svg id="iconSoundOff" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                <line x1="23" y1="9" x2="17" y2="15"/>
+                <line x1="17" y1="9" x2="23" y2="15"/>
+              </svg>
+            </button>
+
+            <!-- Fullscreen -->
+            <button class="ctrl-btn" id="btnFullscreen" title="Toàn màn hình" aria-label="Fullscreen">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="15 3 21 3 21 9"/>
+                <polyline points="9 21 3 21 3 15"/>
+                <line x1="21" y1="3" x2="14" y2="10"/>
+                <line x1="3" y1="21" x2="10" y2="14"/>
+              </svg>
+            </button>
+          </div>
+
+          <div class="ctrl-group">
+            <!-- Detection indicator (chỉ dot, không chữ NORMAL) -->
+            <div class="detection-indicator" id="detectionIndicator">
+              <span class="detection-dot" id="detectionDot"></span>
+            </div>
+          </div>
+        </footer>
+
+      </div><!-- /right-col -->
+    </div><!-- /body-wrap -->
+
+  </div>
+
+  <script src="index.js"></script>
+</body>
+</html>

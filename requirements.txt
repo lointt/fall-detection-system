@@ -1,0 +1,39 @@
+# ──────────────────────────────────────────────────
+# Fall Detection System — Requirements
+# Cài đặt: pip install -r requirements.txt
+# ──────────────────────────────────────────────────
+
+# ── Web framework ──────────────────────────────────
+fastapi==0.111.0
+uvicorn[standard]==0.29.0
+
+# ── Computer Vision ────────────────────────────────
+opencv-python==4.9.0.80
+ultralytics==8.2.18          # YOLOv8n-pose
+
+# ── ONNX Runtime (TCN model inference) ────────────
+onnxruntime==1.18.0
+
+# ── Pose / ML ─────────────────────────────────────
+numpy==1.26.4
+
+# ── NLP — Sentence Transformers ───────────────────
+sentence-transformers==2.7.0
+torch==2.3.0                  # CPU-only; dùng torch==2.3.0+cpu nếu cần
+
+# ── TTS — Text to Speech ──────────────────────────
+pyttsx3==2.90
+
+# ── STT — Speech to Text ──────────────────────────
+SpeechRecognition==3.10.4
+pyaudio==0.2.14               # Yêu cầu portaudio: sudo apt install portaudio19-dev (Linux)
+                              #                    brew install portaudio (macOS)
+
+# ── Telegram ──────────────────────────────────────
+requests==2.32.2
+
+# ── Environment ────────────────────────────────────
+python-dotenv==1.0.1
+
+# ── Utilities ─────────────────────────────────────
+python-multipart==0.0.9       # Upload file support cho FastAPI
