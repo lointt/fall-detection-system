@@ -137,17 +137,6 @@ html, body {
 .session-item__time { font-weight: 700; font-variant-numeric: tabular-nums; }
 .session-item__label { font-size: .7rem; color: var(--text-muted); margin-top: 1px; }
 .session-item--active .session-item__label { color: var(--blue); opacity: .75; }
-.fall-badge-mini {
-  display: inline-block;
-  background: var(--red);
-  color: #fff;
-  font-size: .62rem;
-  font-weight: 700;
-  padding: 1px 5px;
-  border-radius: 999px;
-  margin-left: 3px;
-  vertical-align: middle;
-}
 
 /* ── RIGHT COLUMN ─────────────────────────── */
 .right-col {
@@ -376,24 +365,6 @@ html, body {
   z-index: 1;
   width: 0%;
   transition: width .1s linear;
-}
-
-/* Fall event red dots */
-.fall-markers {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 2;
-}
-.fall-marker {
-  position: absolute;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  width: 9px; height: 9px;
-  background: var(--red);
-  border-radius: 50%;
-  border: 2px solid #fff;
-  box-shadow: 0 0 4px rgba(220,38,38,.6);
 }
 
 /* Invisible range input — draggable thumb for scrubbing */

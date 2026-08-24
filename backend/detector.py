@@ -8,6 +8,9 @@ Output:
   - predicted_videos/YYYYMMDD_HHMMSS.mp4     (ghi lại toàn bộ session)
 
 Pipeline:
+  0. Warm-up model (suy luận giả 1-2 lần) TRƯỚC vòng lặp chính. Segment
+     video đầu tiên là "probe segment" ngắn (PROBE_SEGMENT_SEC) — chỉ để
+     đo fps thực tế; từ segment thứ 2 trở đi mới dùng độ dài chuẩn.
   1. Đọc từng frame từ webcam
   2. YOLOv8n-Pose → trích xuất 17 keypoints (x,y) → chuẩn hóa
   3. Gom thành sliding window (30 frames) → TCN dự đoán FALL / NORMAL
@@ -35,7 +38,7 @@ import onnxruntime as ort
 # CẤU HÌNH ĐƯỜNG DẪN
 # ─────────────────────────────────────────────
 BASE_DIR            = os.path.dirname(os.path.abspath(__file__))
-YOLO_MODEL_PATH     = os.path.join(BASE_DIR, "models",           "yolov8n-pose.pt")
+YOLO_MODEL_PATH     = os.path.join(BASE_DIR, "models",           "yolov8n-pose.onnx")
 TCN_MODEL_PATH      = os.path.join(BASE_DIR, "models",           "tcn_model.onnx")
 SNAPSHOT_DIR        = os.path.join(BASE_DIR, "fall_snapshots")
 PREDICTED_VIDEO_DIR = os.path.join(BASE_DIR, "predicted_videos")
@@ -47,7 +50,7 @@ LOG_PATH            = os.path.join(BASE_DIR, "logs",             "info.log")
 WINDOW_SIZE         = 30      # số frame mỗi chuỗi đầu vào TCN
 NUM_KP              = 17      # số keypoints COCO
 NUM_FEATURES        = 34      # 17 kp × 2 (x,y)
-FALL_THRESHOLD      = 0.8     # ngưỡng sigmoid để kết luận FALL
+FALL_THRESHOLD      = 0.5     # ngưỡng sigmoid để kết luận FALL
 CONF_THRESHOLD      = 0.3     # ngưỡng confidence của YOLOv8
 TRAIN_FPS           = 25      # FPS lúc training
 WEBCAM_INDEX        = 0       # index webcam (0 = webcam mặc định)
@@ -382,6 +385,144 @@ def _new_writer(width: int, height: int, fps: float):
 
 
 # ─────────────────────────────────────────────
+# WARM-UP MODEL + "PROBE SEGMENT" ĐẦU TIÊN (thay cho calibration cô lập)
+# ─────────────────────────────────────────────
+# Lần suy luận ĐẦU TIÊN của YOLO/ONNX Runtime luôn chậm hơn hẳn các lần
+# sau (ONNX Runtime phải build execution graph, cấp phát buffer, cache
+# kernel theo đúng shape input). Nếu không xử lý trước, độ trễ này rơi
+# đúng vào frame đầu tiên của vòng lặp chính → làm lệch loop_times (dùng
+# để tính effective_fps cho resample_window) và làm segment video đầu
+# tiên bị giật. → Vẫn giữ warm-up để xử lý việc này.
+#
+# Về việc chọn fps cho VideoWriter segment ĐẦU TIÊN: bản trước có thêm
+# bước "calibration" — chạy thử pipeline TRƯỚC vòng lặp chính vài giây để
+# đo fps thực tế. Cách đó ĐÃ CHO KẾT QUẢ SAI trên thực tế (video 5 phút
+# ghi thật nhưng hiển thị dài 30+ phút), vì calibration gọi pose_model()
+# ở MỌI frame trong khi vòng lặp chính chỉ chạy YOLO mỗi PROCESS_EVERY_N
+# frame (xem run_detection) — calibration đo một workload nặng hơn thực
+# tế, ra fps thấp hơn nhiều so với throughput thật, khiến fps ghi vào
+# header segment 1 bị sai và duration hiển thị bị thổi phồng.
+#
+# Giải pháp: bỏ calibration cô lập, dùng PROBE_SEGMENT_SEC — segment ĐẦU
+# TIÊN cố tình làm RẤT NGẮN (so với SEGMENT_DURATION_SEC bình thường),
+# dùng fps danh nghĩa webcam làm phỏng đoán ban đầu. Ngay khi probe
+# segment này đóng lại, fps THỰC TẾ được đo bằng đúng cơ chế
+# elapsed/frame_count vốn đã hoạt động chính xác cho các segment sau
+# (xem đoạn xoay segment "6b." trong run_detection) và áp dụng luôn cho
+# segment kế tiếp (độ dài chuẩn). Nhờ vậy chỉ segment "dò" ngắn có thể bị
+# sai lệch nhẹ về duration — không còn ảnh hưởng tới segment 5-phút nào.
+WARMUP_ITERS        = 2      # số lần suy luận giả để warm-up model
+PROBE_SEGMENT_SEC   = 20.0   # độ dài (giây) của segment "dò" đầu tiên
+
+
+def _warmup_model(pose_model, tcn_model, width: int, height: int) -> None:
+    """
+    Warm-up YOLO + TCN: chạy vài lần suy luận GIẢ (dummy input đúng shape)
+    để trigger ONNX Runtime build execution graph / cache kernel TRƯỚC khi
+    vào vòng lặp chính — tránh độ trễ "lần gọi đầu tiên luôn chậm" rơi vào
+    đúng frame đầu tiên của video thật.
+
+    LƯU Ý: hàm này CHỈ warm-up, KHÔNG đo (calibrate) fps thực tế nữa.
+    Một bản trước có thêm bước "calibration" (chạy pipeline thật vài giây
+    để đo fps trước khi ghi segment đầu tiên), nhưng cách đó cho kết quả
+    SAI LỆCH LỚN trên thực tế: calibration gọi pose_model() ở MỌI frame,
+    trong khi vòng lặp chính thật sự chỉ chạy YOLO mỗi PROCESS_EVERY_N
+    frame (các frame còn lại tái dùng skeleton cũ, xem run_detection) —
+    nên calibration đo một workload nặng hơn thực tế, ra fps thấp hơn
+    nhiều so với throughput thật. Kết quả: fps bị ghi sai vào header
+    segment 1 → duration hiển thị bị thổi phồng (video ghi thật 5 phút
+    nhưng file báo dài 30+ phút).
+
+    Cách khắc phục: bỏ calibration cô lập này, thay bằng một PROBE SEGMENT
+    ngắn (xem PROBE_SEGMENT_SEC trong run_detection) dùng đúng cơ chế đo
+    fps sau khi ghi (elapsed/frame_count) vốn đã hoạt động chính xác cho
+    các segment từ thứ 2 trở đi.
+    """
+    logger.info(f"Warm-up model ({WARMUP_ITERS} lần suy luận giả) ...")
+    dummy_frame = np.zeros((height, width, 3), dtype=np.uint8)
+    try:
+        for _ in range(WARMUP_ITERS):
+            pose_model(dummy_frame, verbose=False, conf=CONF_THRESHOLD, imgsz=YOLO_IMGSZ)
+
+        dummy_seq  = np.zeros((1, WINDOW_SIZE, NUM_FEATURES), dtype=np.float32)
+        input_name = tcn_model.get_inputs()[0].name
+        for _ in range(WARMUP_ITERS):
+            tcn_model.run(None, {input_name: dummy_seq})
+        logger.info("Warm-up hoàn tất.")
+    except Exception as e:
+        # Warm-up chỉ là tối ưu — lỗi ở đây không được phép chặn pipeline chính
+        logger.warning(f"Warm-up lỗi (bỏ qua, pipeline chính vẫn chạy bình thường): {e}")
+
+
+# ─────────────────────────────────────────────
+# GHI VIDEO TRÊN THREAD RIÊNG (ASYNC WRITER)
+# ─────────────────────────────────────────────
+# cv2.VideoWriter.write() với codec PHẦN MỀM (mp4v, avc1 không có hardware
+# encoder, MJPG...) không phải thao tác ghi đĩa đơn thuần — nó ENCODE
+# video thật sự (nén khung hình) ngay tại thời điểm gọi, tốn CPU đáng kể.
+# Nếu gọi trực tiếp trong vòng lặp chính (main.py → run_detection), bước
+# này nằm TUẦN TỰ ngay sau YOLO+TCN → main loop phải "chờ" encode xong
+# mới xử lý frame tiếp theo, kéo giảm FPS thực tế của toàn pipeline.
+#
+# Giải pháp: đẩy frame đã vẽ overlay vào 1 queue, một thread RIÊNG lấy ra
+# và gọi writer.write() thật. Vì write() là C-call giải phóng GIL, thread
+# này chạy song song thật trên lõi CPU khác — main loop không còn phải
+# đợi encode, chỉ tốn thời gian put() vào queue (rất rẻ).
+class _AsyncVideoWriter:
+    """
+    Wrapper quanh cv2.VideoWriter: nhận frame qua write() (không block),
+    ghi thật ra file trên thread nền riêng.
+    """
+    def __init__(self, cv_writer: cv2.VideoWriter, maxsize: int = 90):
+        self._writer  = cv_writer
+        self._q       = queue.Queue(maxsize=maxsize)
+        self._stop    = threading.Event()
+        self._dropped = 0
+        self._thread  = threading.Thread(target=self._run, daemon=True, name="video-writer")
+        self._thread.start()
+
+    def _run(self):
+        while True:
+            try:
+                frame = self._q.get(timeout=0.5)
+            except queue.Empty:
+                if self._stop.is_set():
+                    break
+                continue
+            if frame is None:   # sentinel báo dừng
+                break
+            self._writer.write(frame)
+
+    def write(self, frame: np.ndarray) -> None:
+        """Không block main loop. Nếu queue đầy (writer thread không theo
+        kịp), drop frame CŨ NHẤT để ưu tiên frame mới — tránh video bị
+        trễ ngày càng xa so với thời gian thực."""
+        try:
+            self._q.put_nowait(frame)
+        except queue.Full:
+            try:
+                self._q.get_nowait()
+                self._dropped += 1
+            except queue.Empty:
+                pass
+            try:
+                self._q.put_nowait(frame)
+            except queue.Full:
+                pass
+
+    def release(self) -> None:
+        """Đợi queue xả hết (không mất frame cuối segment) rồi mới đóng
+        VideoWriter thật — quan trọng khi xoay segment hoặc dừng detector,
+        nếu không đợi thì vài frame cuối cùng sẽ bị mất."""
+        self._stop.set()
+        self._q.put(None)   # sentinel, đảm bảo _run() thoát ngay cả khi queue đang trống
+        self._thread.join(timeout=10.0)
+        if self._dropped > 0:
+            logger.warning(f"AsyncVideoWriter: đã drop {self._dropped} frame do ghi không kịp.")
+        self._writer.release()
+
+
+# ─────────────────────────────────────────────
 # LƯU ẢNH TÉ NGÃ
 # ─────────────────────────────────────────────
 def save_fall_snapshot(frame: np.ndarray) -> str:
@@ -433,15 +574,30 @@ def run_detection():
 
     grabber = _LatestFrameGrabber(cap).start()
 
-    # ── Khởi tạo VideoWriter segment đầu tiên ──
-    # Lưu ý: fps danh nghĩa của webcam CHỈ dùng cho segment đầu tiên (chưa
-    # có số liệu đo thực tế). Từ segment thứ 2 trở đi, fps sẽ được thay
-    # bằng fps THỰC TẾ đo được ở segment trước đó (xem đoạn xoay segment
-    # bên dưới) để thời lượng video khớp với thời gian ghi thật.
-    writer, output_path = _new_writer(width, height, fps)
+    # ── Warm-up model TRƯỚC vòng lặp chính ──
+    # (không còn calibration cô lập nữa — xem giải thích ở _warmup_model
+    # và PROBE_SEGMENT_SEC phía trên: calibration cô lập từng đo sai fps
+    # vì không mô phỏng đúng logic skip PROCESS_EVERY_N của vòng lặp thật)
+    _warmup_model(pose_model, tcn_model, width, height)
+
+    # ── Khởi tạo VideoWriter segment đầu tiên — PROBE SEGMENT ──
+    # Dùng fps danh nghĩa webcam làm phỏng đoán ban đầu (không có cách nào
+    # biết chính xác fps thực tế TRƯỚC khi đã chạy pipeline thật). Để giới
+    # hạn tác động nếu phỏng đoán này sai, segment đầu tiên được đặt RẤT
+    # NGẮN (PROBE_SEGMENT_SEC) thay vì đủ SEGMENT_DURATION_SEC — ngay khi
+    # nó đóng lại, fps thực tế được đo bằng đúng cơ chế elapsed/frame_count
+    # (đoạn xoay segment "6b." bên dưới) và áp dụng cho segment kế tiếp,
+    # segment đó mới có độ dài chuẩn (300s) và metadata đúng ngay từ đầu.
+    #
+    # Bọc bằng _AsyncVideoWriter: writer.write() chỉ đẩy frame vào queue,
+    # việc encode video thật diễn ra trên thread riêng, không chặn vòng
+    # lặp inference chính.
+    raw_writer, output_path = _new_writer(width, height, fps)
+    writer               = _AsyncVideoWriter(raw_writer)
     segment_start_time   = time.time()
     segment_frame_count  = 0
     measured_fps         = fps
+    segment_target_sec   = PROBE_SEGMENT_SEC   # chỉ áp dụng cho segment đầu tiên này
 
     # ── Sliding window buffer ─────────────────
     window_buf = deque(maxlen=WINDOW_SIZE)
@@ -608,23 +764,51 @@ def run_detection():
         # trong segment vừa đóng (số frame đã ghi / thời gian thực đã trôi
         # qua) và dùng fps đo được đó cho segment kế tiếp, để thời lượng
         # video khớp với thời gian ghi thật.
-        if time.time() - segment_start_time >= SEGMENT_DURATION_SEC:
+        #
+        # segment_target_sec: PROBE_SEGMENT_SEC (ngắn) cho riêng segment
+        # đầu tiên, sau đó luôn là SEGMENT_DURATION_SEC (chuẩn) — xem giải
+        # thích ở PROBE_SEGMENT_SEC phía trên.
+        if time.time() - segment_start_time >= segment_target_sec:
             elapsed = time.time() - segment_start_time
             if segment_frame_count > 0 and elapsed > 0:
                 measured_fps = segment_frame_count / elapsed
                 # Kẹp trong khoảng hợp lý để tránh giá trị bất thường
                 measured_fps = max(1.0, min(measured_fps, fps))
 
-            writer.release()
-            logger.info(
-                f"Đã đóng segment: {output_path} | "
-                f"{segment_frame_count} frame trong {elapsed:.1f}s "
-                f"(fps thực đo: {measured_fps:.2f}, fps danh nghĩa webcam: {fps:.1f})"
-            )
-            writer, output_path = _new_writer(width, height, measured_fps)
+            # Từ lần xoay này trở đi, mọi segment tiếp theo dùng độ dài chuẩn
+            segment_target_sec = SEGMENT_DURATION_SEC
+
+            # Tạo segment MỚI trước, rồi mới đóng segment CŨ trên thread
+            # riêng — writer.release() của _AsyncVideoWriter phải đợi
+            # queue xả hết nên có thể mất vài trăm ms tới vài giây; nếu
+            # gọi đồng bộ ở đây sẽ làm main loop khựng lại mỗi khi xoay
+            # segment (mỗi SEGMENT_DURATION_SEC). Tách ra thread nền để
+            # main loop không bị ảnh hưởng.
+            closing_writer = writer
+            closing_path   = output_path
+            closing_count  = segment_frame_count
+            closing_elapsed = elapsed
+
+            raw_writer, output_path = _new_writer(width, height, measured_fps)
+            writer = _AsyncVideoWriter(raw_writer)
             segment_start_time   = time.time()
             segment_frame_count  = 0
             current_session_path = output_path
+
+            def _close_old_segment(w, path, count, dur, mfps, nfps):
+                w.release()   # đợi queue xả hết rồi mới release cv2 writer thật
+                logger.info(
+                    f"Đã đóng segment: {path} | "
+                    f"{count} frame trong {dur:.1f}s "
+                    f"(fps thực đo: {mfps:.2f}, fps danh nghĩa webcam: {nfps:.1f})"
+                )
+
+            threading.Thread(
+                target=_close_old_segment,
+                args=(closing_writer, closing_path, closing_count, closing_elapsed, measured_fps, fps),
+                daemon=True,
+                name="segment-closer",
+            ).start()
 
         # ── 7. Encode JPEG → queue cho stream ─
         ret_enc, jpeg = cv2.imencode(

@@ -28,7 +28,6 @@ const fallBadge      = document.getElementById('fallBadge');
 const sessionList    = document.getElementById('sessionList');
 const timelineFill   = document.getElementById('timelineFill');
 const timelineRange  = document.getElementById('timelineRange');
-const fallMarkersEl  = document.getElementById('fallMarkers');
 const tlCurrent      = document.getElementById('tlCurrent');
 const tlTotal        = document.getElementById('tlTotal');
 const btnPlay        = document.getElementById('btnPlay');
@@ -120,10 +119,8 @@ async function loadSessions(ds) {
       const el  = document.createElement('div');
       el.className = 'session-item';
       el.dataset.filename = item.filename;
-      const badge = item.fall_count > 0
-        ? `<span class="fall-badge-mini">⚠ ${item.fall_count}</span>` : '';
       el.innerHTML =
-        `<div class="session-item__time">${ts}${badge}</div>` +
+        `<div class="session-item__time">${ts}</div>` +
         `<div class="session-item__label">${item.duration || '--:--'}</div>`;
       el.addEventListener('click', () => {
         document.querySelectorAll('.session-item').forEach(e => e.classList.remove('session-item--active'));
@@ -171,7 +168,6 @@ function resetPlayer() {
   tlTotal.textContent   = '00:00';
   timelineFill.style.width = '0%';
   timelineRange.value      = 0;
-  fallMarkersEl.innerHTML  = '';
   fallTimes = [];
 }
 
@@ -187,7 +183,6 @@ histVideo.addEventListener('loadedmetadata', () => {
   const dur = histVideo.duration;
   timelineRange.max = dur;
   tlTotal.textContent = fmtTime(dur);
-  buildFallMarkers(dur);
 });
 
 histVideo.addEventListener('timeupdate', () => {
@@ -212,17 +207,6 @@ histVideo.addEventListener('ended', () => { iconPlay.style.display='block'; icon
 timelineRange.addEventListener('input', () => {
   histVideo.currentTime = parseFloat(timelineRange.value);
 });
-
-function buildFallMarkers(duration) {
-  fallMarkersEl.innerHTML = '';
-  fallTimes.forEach(ft => {
-    const m = document.createElement('div');
-    m.className = 'fall-marker';
-    m.style.left = `${(ft / duration * 100).toFixed(2)}%`;
-    m.title = `Té ngã tại ${fmtTime(ft)}`;
-    fallMarkersEl.appendChild(m);
-  });
-}
 
 // ── Controls ──────────────────────────────────────────
 btnPlay.addEventListener('click', () => {

@@ -1,5 +1,12 @@
 # Fall Detection System
 
+## 🎥 Demo Video
+
+[![Watch the Project Demo](https://img.youtube.com/vi/3LGUj_RKHKQ/maxresdefault.jpg)](https://youtu.be/3LGUj_RKHKQ)
+
+Click the image above to watch the full project demo on YouTube.
+
+
 A real-time fall detection system using YOLOv8-Pose + TCN, with a FastAPI backend and a web-based frontend (live view + history playback).
 
 ## Project Structure
